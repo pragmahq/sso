@@ -4,7 +4,7 @@ go 1.22.3
 
 require (
 	github.com/go-pg/pg v8.0.7+incompatible
-	github.com/labstack/echo v3.3.10+incompatible
+	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/labstack/echo/v4 v4.12.0
 )
 
