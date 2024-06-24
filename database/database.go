@@ -1,24 +1,30 @@
-package db
+package database
 
 import (
 	"os"
 
-	"github.com/go-pg/pg"
-	"github.com/go-pg/pg/orm"
+	"github.com/go-pg/pg/v10"
+	"github.com/go-pg/pg/v10/orm"
 )
 
-func InitDB() (*pg.DB, error) {
+type DB struct {
+	*pg.DB
+}
+
+func InitDB() (*DB, error) {
 	options, err := pg.ParseURL(os.Getenv("DATABASE_URL"))
 	if err != nil {
 		return nil, err
 	}
 
-	db := pg.Connect(options)
+	pgDB := pg.Connect(options)
 
-	_, err = db.Exec("SELECT 1")
+	_, err = pgDB.Exec("SELECT 1")
 	if err != nil {
 		return nil, err
 	}
+
+	db := &DB{pgDB}
 
 	err = createSchema(db)
 	if err != nil {
@@ -28,7 +34,7 @@ func InitDB() (*pg.DB, error) {
 	return db, nil
 }
 
-func createSchema(db *pg.DB) error {
+func createSchema(db *DB) error {
 	models := []interface{}{
 		(*User)(nil),
 		(*UserProfile)(nil),
@@ -43,5 +49,6 @@ func createSchema(db *pg.DB) error {
 			return err
 		}
 	}
+
 	return nil
 }
