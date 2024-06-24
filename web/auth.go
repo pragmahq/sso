@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-pg/pg/v10"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	echojwt "github.com/labstack/echo-jwt/v4"
@@ -17,13 +18,19 @@ type ReqBody struct {
 	Password string `json:"password"`
 }
 
+type RegisterBody struct {
+	Email      string `json:"email"`
+	Password   string `json:"password"`
+	InviteCode string `json:"invite_code"`
+}
+
 func registerAuthRoutes(router *echo.Echo, db *database.DB) {
-	r := router.Group("/auth")
+	r := router.Group("/api/auth")
 	r.POST("/register", registerUser(db))
 	r.POST("/login", login(db))
 	r.GET("/logout", logout)
 
-	d := router.Group("/user")
+	d := router.Group("/api/user")
 	d.Use(echojwt.WithConfig(echojwt.Config{
 		SigningKey:  SECRET,
 		TokenLookup: "cookie:Token",
@@ -33,30 +40,58 @@ func registerAuthRoutes(router *echo.Echo, db *database.DB) {
 
 func registerUser(db *database.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		var req ReqBody
+		var req RegisterBody
 		if err := c.Bind(&req); err != nil {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
 		}
 
-		// Check if user already exists
-		existingUser, _ := database.GetUserByEmail(db, req.Email)
-		if existingUser != nil {
+		existingUser := &database.User{Email: req.Email}
+		err := db.Model(existingUser).Where("email = ?", req.Email).Select()
+		if err == nil {
 			return c.JSON(http.StatusConflict, map[string]string{"error": "User already exists"})
+		} else if err != pg.ErrNoRows {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Database error"})
 		}
 
-		// Hash the password
+		inviteCode, err := database.GetInviteCodeByCode(db, req.InviteCode)
+		if err != nil || inviteCode == nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid invite code"})
+		}
+		if inviteCode.UsedBy != "" {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invite code already used"})
+		}
+
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to hash password"})
 		}
 
-		// Create new user
 		user := &database.User{
 			Id:       uuid.New().String(),
 			Email:    req.Email,
 			Password: string(hashedPassword),
 		}
-		err = user.Create(db)
+
+		err = db.RunInTransaction(c.Request().Context(), func(tx *pg.Tx) error {
+			_, err := tx.Model(user).Insert()
+			if err != nil {
+				return err
+			}
+
+			inviteCode.UsedBy = user.Id
+			inviteCode.UsedAt = pg.NullTime{Time: time.Now(), Valid: true}
+			_, err = tx.Model(inviteCode).
+				Set("used_by = ?used_by").
+				Set("used_at = ?used_at").
+				Where("id = ?id").
+				Update()
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create user"})
 		}

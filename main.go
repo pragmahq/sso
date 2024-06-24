@@ -14,5 +14,5 @@ func main() {
 	}
 
 	defer db.Close()
-	web.Serve()
+	web.Serve(db)
 }

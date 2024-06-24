@@ -2,13 +2,23 @@ package database
 
 import (
 	"fmt"
+
+	"github.com/go-pg/pg/v10"
+)
+
+const (
+	PermissionUser = 1 << iota
+	PermissionEditor
+	PermissionAdmin
 )
 
 type User struct {
-	Id       string       `pg:"id,pk"`
-	Email    string       `pg:"email,unique"`
-	Password string       `pg:"password"`
-	Profile  *UserProfile `pg:"rel:has-one"`
+	Id               string        `pg:"id,pk"`
+	Email            string        `pg:"email,unique"`
+	Password         string        `pg:"password"`
+	Permissions      int           `pg:"permissions"`
+	Profile          *UserProfile  `pg:"rel:has-one"`
+	GeneratedInvites []*InviteCode `pg:"rel:has-many,fk:generated_by"`
 }
 
 type UserProfile struct {
@@ -59,7 +69,42 @@ func (u *User) Delete(db *DB) error {
 	return err
 }
 
-// UserProfile CRUD operations
+func (u *User) IsUser() bool {
+	return u.Permissions&PermissionUser != 0
+}
+
+func (u *User) IsEditor() bool {
+	return u.Permissions&PermissionEditor != 0
+}
+
+func (u *User) IsAdmin() bool {
+	return u.Permissions&PermissionAdmin != 0
+}
+
+func (u *User) SetUser() {
+	u.Permissions |= PermissionUser
+}
+
+func (u *User) SetEditor() {
+	u.Permissions |= PermissionEditor
+}
+
+func (u *User) SetAdmin() {
+	u.Permissions |= PermissionAdmin
+}
+
+func (u *User) RemoveUser() {
+	u.Permissions &^= PermissionUser
+}
+
+func (u *User) RemoveEditor() {
+	u.Permissions &^= PermissionEditor
+}
+
+func (u *User) RemoveAdmin() {
+	u.Permissions &^= PermissionAdmin
+}
+
 func (p *UserProfile) Create(db *DB) error {
 	_, err := db.Model(p).Insert()
 	return err
@@ -79,7 +124,6 @@ func (p *UserProfile) Delete(db *DB) error {
 	return err
 }
 
-// Socials CRUD operations
 func (s *Socials) Create(db *DB) error {
 	_, err := db.Model(s).Insert()
 	return err
@@ -97,6 +141,25 @@ func (s *Socials) Update(db *DB) error {
 func (s *Socials) Delete(db *DB) error {
 	_, err := db.Model(s).WherePK().Delete()
 	return err
+}
+
+func (u *User) UpdatePermissions(db *pg.DB) error {
+	_, err := db.Model(u).
+		Set("permissions = ?", u.Permissions).
+		Where("id = ?", u.Id).
+		Update()
+	return err
+}
+
+func (u *User) GetHighestPermission() string {
+	if u.IsAdmin() {
+		return "Admin"
+	} else if u.IsEditor() {
+		return "Editor"
+	} else if u.IsUser() {
+		return "User"
+	}
+	return "None"
 }
 
 func (u *User) GetUserWithProfile(db *DB) error {

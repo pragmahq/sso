@@ -46,9 +46,11 @@ func TestInitDB(t *testing.T) {
 func TestUserCRUD(t *testing.T) {
 	// Test Create
 	user := &User{
-		Id:       uuid.New().String(),
-		Email:    "test@example.com",
-		Password: "password123",
+		Id:          uuid.New().String(),
+		Email:       "test@example.com",
+		Password:    "password123",
+		Permissions: PermissionUser, // Set default permission to User
+
 	}
 	err := user.Create(testDB)
 	assert.NoError(t, err)

@@ -19,6 +19,11 @@ func InitDB() (*DB, error) {
 
 	pgDB := pg.Connect(options)
 
+	_, err = pgDB.Exec(`CREATE SCHEMA IF NOT EXISTS public`)
+	if err != nil {
+		return nil, err
+	}
+
 	_, err = pgDB.Exec("SELECT 1")
 	if err != nil {
 		return nil, err
@@ -39,6 +44,12 @@ func createSchema(db *DB) error {
 		(*User)(nil),
 		(*UserProfile)(nil),
 		(*Socials)(nil),
+		(*InviteCode)(nil),
+	}
+
+	_, err := db.Exec(`SET search_path TO public`)
+	if err != nil {
+		return err
 	}
 
 	for _, model := range models {
