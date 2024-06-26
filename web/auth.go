@@ -29,6 +29,7 @@ func registerAuthRoutes(router *echo.Echo, db *database.DB) {
 	r.POST("/register", registerUser(db))
 	r.POST("/login", login(db))
 	r.GET("/logout", logout)
+	r.GET("/validate", validateToken(db))
 
 	d := router.Group("/api/user")
 	d.Use(echojwt.WithConfig(echojwt.Config{
@@ -157,6 +158,55 @@ func logout(c echo.Context) error {
 
 	c.SetCookie(cookie)
 	return c.String(http.StatusOK, "Logged out successfully")
+}
+
+func validateToken(db *database.DB) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		cookie, err := c.Cookie("Token")
+		if err != nil {
+			return c.JSON(http.StatusUnauthorized, map[string]string{"error": "No token provided"})
+		}
+
+		token, err := jwt.Parse(cookie.Value, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, echo.NewHTTPError(http.StatusUnauthorized, "invalid token")
+			}
+			return []byte(SECRET), nil
+		})
+
+		if err != nil {
+			return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token"})
+		}
+
+		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+			if exp, ok := claims["exp"].(float64); ok {
+				if time.Now().Unix() > int64(exp) {
+					return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Token has expired"})
+				}
+			}
+
+			userID, ok := claims["user_id"].(string)
+			if !ok {
+				return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token claims"})
+			}
+
+			user := &database.User{Id: userID}
+			err := db.Model(user).WherePK().Select()
+			if err != nil {
+				return c.JSON(http.StatusUnauthorized, map[string]string{"error": "User not found"})
+			}
+
+			return c.JSON(http.StatusOK, map[string]interface{}{
+				"valid": true,
+				"user": map[string]interface{}{
+					"id":    user.Id,
+					"email": user.Email,
+				},
+			})
+		}
+
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token"})
+	}
 }
 
 func getUser(db *database.DB) echo.HandlerFunc {
