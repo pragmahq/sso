@@ -2,7 +2,7 @@
 
 ## Overview
 
-Nexus, inspired by the central hub in[Demon's Souls](https://en.wikipedia.org/wiki/Demon%27s_Souls), serves as the centralized platform for internal Pragma users. This Next.js application provides essential functionality for our team members, streamlining their daily workflows and enhancing productivity.
+Nexus, inspired by the central hub in [Demon's Souls](https://en.wikipedia.org/wiki/Demon%27s_Souls), serves as the centralized platform for internal Pragma users. This Next.js application provides essential functionality for our team members, streamlining their daily workflows and enhancing productivity.
 
 ## Key Features
 
