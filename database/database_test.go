@@ -49,8 +49,7 @@ func TestUserCRUD(t *testing.T) {
 		Id:          uuid.New().String(),
 		Email:       "test@example.com",
 		Password:    "password123",
-		Permissions: PermissionUser, // Set default permission to User
-
+		Permissions: PermissionUser,
 	}
 	err := user.Create(testDB)
 	assert.NoError(t, err)
@@ -83,9 +82,10 @@ func TestUserCRUD(t *testing.T) {
 func TestGetUserByEmail(t *testing.T) {
 	// Create a test user
 	user := &User{
-		Id:       uuid.New().String(),
-		Email:    "getbyemail@example.com",
-		Password: "password123",
+		Id:          uuid.New().String(),
+		Email:       "getbyemail@example.com",
+		Password:    "password123",
+		Permissions: PermissionUser,
 	}
 	err := user.Create(testDB)
 	assert.NoError(t, err)

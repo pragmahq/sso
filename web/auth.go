@@ -53,7 +53,7 @@ func registerUser(db *database.DB) echo.HandlerFunc {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Database error"})
 		}
 
-		inviteCode, err := database.GetInviteCodeByCode(db, req.InviteCode)
+		inviteCode, err := database.GetInviteCode(db, req.InviteCode)
 		if err != nil || inviteCode == nil {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid invite code"})
 		}
@@ -79,7 +79,11 @@ func registerUser(db *database.DB) echo.HandlerFunc {
 			}
 
 			inviteCode.UsedBy = user.Id
-			inviteCode.UsedAt = pg.NullTime{Time: time.Now(), Valid: true}
+			if inviteCode.UsedAt == nil {
+				inviteCode.UsedAt = new(time.Time)
+			}
+			*inviteCode.UsedAt = time.Now()
+
 			_, err = tx.Model(inviteCode).
 				Set("used_by = ?used_by").
 				Set("used_at = ?used_at").

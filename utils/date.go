@@ -14,7 +14,7 @@
 
 		            fmt.Printf("Date as string: %s\n", internal.DateToString(date))
 */
-package internal
+package utils
 
 import (
 	"fmt"

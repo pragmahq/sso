@@ -9,7 +9,6 @@ import (
 
 type InviteCode struct {
 	Id          string     `pg:"id,pk"`
-	Code        string     `pg:"code,unique"`
 	GeneratedBy string     `pg:"generated_by"`
 	UsedBy      string     `pg:"used_by"`
 	CreatedAt   time.Time  `pg:"created_at"`
@@ -21,10 +20,10 @@ func (i *InviteCode) Create(db *DB) error {
 	return err
 }
 
-func GetInviteCodeByCode(db *DB, code string) (*InviteCode, error) {
+func GetInviteCode(db *DB, code string) (*InviteCode, error) {
 	inviteCode := &InviteCode{}
 	err := db.Model(inviteCode).
-		Where("code = ?", code).
+		Where("id = ?", code).
 		Select()
 	if err != nil {
 		if err == pg.ErrNoRows {
@@ -36,10 +35,8 @@ func GetInviteCodeByCode(db *DB, code string) (*InviteCode, error) {
 }
 
 func GenerateInviteCode(db *DB, generatedBy string) (*InviteCode, error) {
-	code := uuid.New().String()
 	inviteCode := &InviteCode{
 		Id:          uuid.New().String(),
-		Code:        code,
 		GeneratedBy: generatedBy,
 		CreatedAt:   time.Now(),
 	}
