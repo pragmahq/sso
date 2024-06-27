@@ -28,16 +28,21 @@ export default function AuthenticationPage({
   const [emailError, setEmailError] = useState<string>("");
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    const redirect = searchParams.get("redirect");
-    if (redirect) {
-      setRedirectUrl(redirect);
-    } else {
-      router.push("/error");
-    }
-  }, [searchParams, router]);
+  function redirect(url: string, token: string) {
+    if (url.startsWith("/")) return router.push(url);
+
+    const redirectWithToken = `${url}?token=${token}`;
+    window.location.href = redirectWithToken;
+  }
 
   useEffect(() => {
+    const redirectu = searchParams.get("redirect");
+    if (redirectu) {
+      setRedirectUrl(redirectu);
+    } else {
+      setRedirectUrl("/");
+    }
+
     if (token) {
       axios
         .get("http://localhost:8080/api/auth/validate", {
@@ -46,17 +51,14 @@ export default function AuthenticationPage({
 
         .then((response) => {
           if (response.status === 200) {
-            console.log("Token validated successfully:", response.data);
-            // Redirect with token
-            // const redirectWithToken = `${redirectUrl}?token=${token}`;
-            // window.location.href = redirectWithToken;
+            redirect(redirectu || "/", token);
           }
         })
         .catch(() => {
           deleteCookie("Token");
         });
     }
-  }, []);
+  }, [searchParams, router]);
 
   const validateEmail = (email: string): boolean => {
     const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -93,17 +95,7 @@ export default function AuthenticationPage({
 
       if (response.ok) {
         const data = await response.json();
-
-        if (redirectUrl) {
-          const redirectWithToken = `${redirectUrl}?token=${data.token}`;
-          window.location.href = redirectWithToken;
-        } else {
-          toast({
-            title: "Login Successful",
-            description: "You have been successfully logged in.",
-            variant: "default",
-          });
-        }
+        redirect(redirectUrl || "/", data.token);
       } else if (response.status === 401) {
         toast({
           title: "Bad Credentials.",
