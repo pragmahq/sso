@@ -1,24 +1,40 @@
 "use client";
-import Loader from "@/components/loader";
-import ThemeSwitcher from "@/components/theme/theme-switcher";
-import axios from "axios";
-import { useSearchParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/legacy/image";
+import Link from "next/link";
+import axios from "axios";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FaSpinner } from "react-icons/fa6";
 import { TbLogin2 } from "react-icons/tb";
-import Link from "next/link";
+import Loader from "@/components/loader";
+import ThemeSwitcher from "@/components/theme/theme-switcher";
+import { useToast } from "@/components/ui/use-toast";
+interface FormData {
+  email: string;
+  password: string;
+  confirmPassword: string;
+  [key: string]: string | undefined;
+}
+
 export default function SignupPage({ token }: { token: string }) {
   const sp = useSearchParams();
   const router = useRouter();
   const inviteCode = sp.get("invite");
+  const { toast } = useToast();
   const [loaded, setLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [emailError, setEmailError] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [formData, setFormData] = useState<FormData>({
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [errors, setErrors] = useState<FormData>({
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
 
   useEffect(() => {
     if (!inviteCode) {
@@ -26,61 +42,123 @@ export default function SignupPage({ token }: { token: string }) {
       return;
     }
 
-    const validateToken = async () => {
-      if (token) {
-        try {
+    const validateTokenAndInvite = async () => {
+      try {
+        if (token) {
           await axios.get(
             `${process.env.NEXT_PUBLIC_BACKEND_URL!}/api/auth/validate`,
             { withCredentials: true }
           );
           router.replace("/");
-        } catch {
-          await axios.get("/api/logout", { withCredentials: true });
         }
-      }
-    };
-
-    const validateInvite = async () => {
-      try {
         await axios.get(
           `${process.env
             .NEXT_PUBLIC_BACKEND_URL!}/api/auth/validate-invite/${inviteCode}`
         );
         setLoaded(true);
-      } catch {
+      } catch (error) {
+        if (token) {
+          await axios.get("/api/logout", { withCredentials: true });
+        }
         router.push("/404");
       }
     };
 
-    validateToken();
-    validateInvite();
+    validateTokenAndInvite();
   }, [inviteCode, token, router]);
+
+  useEffect(() => {
+    validatePasswords();
+  }, [formData.password, formData.confirmPassword]);
 
   const validateEmail = (email: string) =>
     /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(
       email.toLowerCase()
     );
 
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newEmail = e.target.value;
-    setEmail(newEmail);
-    setEmailError(
-      newEmail && !validateEmail(newEmail)
-        ? "Please enter a valid email address"
-        : ""
-    );
+  const validatePassword = (password: string) => password.length >= 8; // Add more conditions as needed
+
+  const validatePasswords = () => {
+    const { password, confirmPassword } = formData;
+    let passwordError = "";
+    let confirmPasswordError = "";
+
+    if (password && !validatePassword(password)) {
+      passwordError = "Password must be at least 8 characters long";
+    }
+
+    if (confirmPassword && password !== confirmPassword) {
+      confirmPasswordError = "Passwords do not match";
+    }
+
+    setErrors((prev) => ({
+      ...prev,
+      password: passwordError,
+      confirmPassword: confirmPasswordError,
+    }));
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    if (name === "email") {
+      setErrors((prev) => ({
+        ...prev,
+        email:
+          value && !validateEmail(value)
+            ? "Please enter a valid email address"
+            : "",
+      }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (Object.values(errors).some((error) => error) || !validateForm()) {
+      return;
+    }
+    setIsLoading(true);
+
+    try {
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL!}/api/auth/register`,
+        {
+          email: formData.email,
+          password: formData.password,
+          inviteCode,
+        }
+      );
+      router.push("/");
+    } catch (error: any) {
+      if (error.response?.status === 409) {
+        setErrors((prev) => ({
+          ...prev,
+          email: "Email already in use",
+        }));
+      } else {
+        toast({
+          title: "An error occurred",
+          description: "Please try again",
+          variant: "destructive",
+        });
+      }
+    }
   };
 
-  if (!loaded)
-    return (
-      <div>
-        <Loader />
-      </div>
-    );
+  const validateForm = () => {
+    const newErrors = {
+      email: !formData.email ? "Email is required" : "",
+      password: !formData.password ? "Password is required" : "",
+      confirmPassword: !formData.confirmPassword
+        ? "Please confirm your password"
+        : "",
+    };
+    setErrors((prev) => ({ ...prev, ...newErrors }));
+    return !Object.values(newErrors).some((error) => error);
+  };
+
+  if (!loaded) return <Loader />;
 
   return (
     <div className="w-screen h-screen flex items-center justify-center flex-col">
@@ -107,51 +185,47 @@ export default function SignupPage({ token }: { token: string }) {
                 onSubmit={handleSubmit}
                 className="flex flex-col text-left mt-10 gap-3 items-center"
               >
-                <div className="w-[90%]">
-                  <Input
-                    type="email"
-                    id="email"
-                    placeholder="Email"
-                    className={`border-[0.6px] w-full ${
-                      emailError ? "border-red-500" : ""
-                    }`}
-                    onChange={handleEmailChange}
-                    value={email}
-                    required
-                  />
-                  {emailError && (
-                    <p className="text-red-500 text-sm mt-1">{emailError}</p>
-                  )}
-                </div>
+                {["email", "password", "confirmPassword"].map((field) => (
+                  <div key={field} className="w-[90%]">
+                    <Input
+                      type={field === "email" ? "email" : "password"}
+                      name={field}
+                      placeholder={
+                        field.charAt(0).toUpperCase() +
+                        field.slice(1).replace(/([A-Z])/g, " $1")
+                      }
+                      className={`border-[0.6px] w-full ${
+                        errors[field] ? "border-red-500" : ""
+                      }`}
+                      onChange={handleInputChange}
+                      value={formData[field]}
+                      required
+                    />
+                    {errors[field] && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors[field]}
+                      </p>
+                    )}
+                  </div>
+                ))}
                 <Input
-                  type="password"
-                  id="password"
-                  placeholder="Password"
-                  className="border-[0.6px] w-[90%]"
-                  onChange={(e) => setPassword(e.target.value)}
-                  value={password}
-                  required
-                />
-                <Input
-                  type="email"
-                  id="email"
-                  placeholder="Email"
-                  className={`w-[90%] border-[0.6px]`}
+                  className="w-[90%] border-[0.6px]"
                   value={inviteCode!}
                   disabled
                 />
-
                 <Button
                   type="submit"
                   className="dark:bg-white bg-black text-white dark:text-black w-[50%]"
-                  disabled={isLoading || !!emailError}
+                  disabled={
+                    isLoading || Object.values(errors).some((error) => error)
+                  }
                 >
                   {isLoading ? (
                     <FaSpinner className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
                     <TbLogin2 className="mr-2 h-4 w-4" />
                   )}
-                  Login
+                  Sign Up
                 </Button>
                 <hr className="w-[70%] mt-3" />
                 <p className="text-zinc-400 dark:text-gray-400 text-sm">

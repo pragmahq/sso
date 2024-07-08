@@ -21,7 +21,7 @@ type ReqBody struct {
 type RegisterBody struct {
 	Email      string `json:"email"`
 	Password   string `json:"password"`
-	InviteCode string `json:"invite_code"`
+	InviteCode string `json:"inviteCode"`
 }
 
 func registerAuthRoutes(router *echo.Echo, db *database.DB) {
