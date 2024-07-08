@@ -18,61 +18,50 @@ export default function AuthenticationPage({
 }: {
   token: string | undefined;
 }) {
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
+
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [email, setEmail] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
-  const [emailError, setEmailError] = useState<string>("");
-  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
-
-  function redirect(url: string, token: string) {
-    if (url.startsWith("/")) return router.push(url);
-
-    const redirectWithToken = `${url}?token=${token}`;
-    window.location.href = redirectWithToken;
-  }
-
   useEffect(() => {
-    const redirectu = searchParams.get("redirect");
-    if (redirectu) {
-      setRedirectUrl(redirectu);
-    } else {
-      setRedirectUrl("/");
-    }
+    const redirectu = searchParams.get("redirect") || "/";
+    setRedirectUrl(redirectu);
 
     if (token) {
       axios
         .get(`${process.env.NEXT_PUBLIC_BACKEND_URL!}/api/auth/validate`, {
           withCredentials: true,
         })
-
         .then((response) => {
-          if (response.status === 200) {
-            redirect(redirectu || "/", token);
-          }
+          if (response.status === 200) redirect(redirectu, token);
         })
-        .catch(() => {
-          deleteCookie("Token");
-        });
+        .catch(() => deleteCookie("Token"));
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, token]);
 
-  const validateEmail = (email: string): boolean => {
-    const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    return re.test(String(email).toLowerCase());
+  const redirect = (url: string, token: string) => {
+    if (url.startsWith("/")) return router.push(url);
+    window.location.href = `${url}?token=${token}`;
   };
+
+  const validateEmail = (email: string) =>
+    /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(
+      email.toLowerCase()
+    );
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newEmail = e.target.value;
     setEmail(newEmail);
-    if (newEmail && !validateEmail(newEmail)) {
-      setEmailError("Please enter a valid email address");
-    } else {
-      setEmailError("");
-    }
+    setEmailError(
+      newEmail && !validateEmail(newEmail)
+        ? "Please enter a valid email address"
+        : ""
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,18 +76,15 @@ export default function AuthenticationPage({
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_BACKEND_URL!}/api/auth/login`,
         {
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           email,
           password,
           credentials: "include",
         }
       );
 
-      if (response.status == 200) {
-        const data = await response.data;
-        redirect(redirectUrl || "/", data.token);
+      if (response.status === 200) {
+        redirect(redirectUrl || "/", response.data.token);
       } else if (response.status === 401) {
         toast({
           title: "Bad Credentials.",
@@ -134,13 +120,11 @@ export default function AuthenticationPage({
               <Image src="/logo.svg" width={80} height={80} alt="pragma logo" />
               <h1 className="text-3xl font-bold">PRAGMA</h1>
             </div>
-
             <div className="flex flex-col space-y-2 text-center border-[0.5px] rounded-lg py-[5rem] px-3">
               <h1 className="text-2xl font-semibold tracking-tight">
                 Authenticate
               </h1>
               <p>Sign into all your pragma apps!</p>
-
               <form
                 onSubmit={handleSubmit}
                 className="flex flex-col text-left mt-10 gap-3 items-center"
@@ -170,7 +154,6 @@ export default function AuthenticationPage({
                   value={password}
                   required
                 />
-
                 <Button
                   type="submit"
                   className="dark:bg-white bg-black text-white dark:text-black w-[50%]"
@@ -183,7 +166,6 @@ export default function AuthenticationPage({
                   )}
                   Login
                 </Button>
-
                 <hr className="w-[70%] mt-3" />
                 <p className="text-zinc-400 dark:text-gray-400 text-sm">
                   By continuing, you agree to the{" "}
