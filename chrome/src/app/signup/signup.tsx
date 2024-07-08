@@ -4,7 +4,7 @@ import ThemeSwitcher from "@/components/theme/theme-switcher";
 import axios from "axios";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import Image from "next/image";
+import Image from "next/legacy/image";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FaSpinner } from "react-icons/fa6";
