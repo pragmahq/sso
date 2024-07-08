@@ -30,6 +30,7 @@ func registerAuthRoutes(router *echo.Echo, db *database.DB) {
 	r.POST("/login", login(db))
 	r.GET("/logout", logout)
 	r.GET("/validate", validateToken(db))
+	r.GET("/validate-invite/:invite", validateInvite(db))
 
 	d := router.Group("/api/user")
 	d.Use(echojwt.WithConfig(echojwt.Config{
@@ -37,6 +38,26 @@ func registerAuthRoutes(router *echo.Echo, db *database.DB) {
 		TokenLookup: "cookie:Token",
 	}))
 	d.GET("/", getUser(db))
+}
+
+func validateInvite(db *database.DB) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		code := c.Param("invite")
+
+		if code == "" {
+			return c.JSON(http.StatusNotFound, map[string]string{"error": "not found"})
+		}
+
+		inviteCode, err := database.GetInviteCode(db, code)
+		if err != nil || inviteCode == nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid invite code"})
+		}
+		if inviteCode.UsedBy != "" {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invite code already used"})
+		}
+
+		return c.JSON(http.StatusOK, map[string]string{"message": "valid"})
+	}
 }
 
 func registerUser(db *database.DB) echo.HandlerFunc {
