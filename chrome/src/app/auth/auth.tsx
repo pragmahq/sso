@@ -45,7 +45,7 @@ export default function AuthenticationPage({
 
     if (token) {
       axios
-        .get("http://localhost:8080/api/auth/validate", {
+        .get(`${process.env.NEXT_PUBLIC_BACKEND_URL!}/api/auth/validate`, {
           withCredentials: true,
         })
 
@@ -84,17 +84,20 @@ export default function AuthenticationPage({
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8080/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-        credentials: "include",
-      });
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL!}/api/auth/login`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          email,
+          password,
+          credentials: "include",
+        }
+      );
 
-      if (response.ok) {
-        const data = await response.json();
+      if (response.status == 200) {
+        const data = await response.data;
         redirect(redirectUrl || "/", data.token);
       } else if (response.status === 401) {
         toast({
@@ -132,7 +135,7 @@ export default function AuthenticationPage({
               <h1 className="text-3xl font-bold">PRAGMA</h1>
             </div>
 
-            <div className="flex flex-col space-y-2 text-center border border-[0.5px] rounded rounded-lg py-[5rem] px-3">
+            <div className="flex flex-col space-y-2 text-center border-[0.5px] rounded-lg py-[5rem] px-3">
               <h1 className="text-2xl font-semibold tracking-tight">
                 Authenticate
               </h1>
@@ -140,14 +143,16 @@ export default function AuthenticationPage({
 
               <form
                 onSubmit={handleSubmit}
-                className="flex flex-col gap-2 text-left mt-10 gap-3 items-center"
+                className="flex flex-col text-left mt-10 gap-3 items-center"
               >
                 <div className="w-[90%]">
                   <Input
                     type="email"
                     id="email"
                     placeholder="Email"
-                    className={`border-[0.6px] w-full ${emailError ? "border-red-500" : ""}`}
+                    className={`border-[0.6px] w-full ${
+                      emailError ? "border-red-500" : ""
+                    }`}
                     onChange={handleEmailChange}
                     value={email}
                     required
