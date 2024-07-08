@@ -52,3 +52,25 @@
     max-width: 43rem;
   }
 }
+
+@keyframes discord-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(360deg);
+  }
+  50% {
+    transform: rotate(360deg);
+  }
+  75% {
+    transform: rotate(720deg);
+  }
+  100% {
+    transform: rotate(720deg);
+  }
+}
+
+.discord-spin {
+  animation: discord-spin 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
