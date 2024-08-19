@@ -15,7 +15,7 @@ A single sign-on solution tailored for Pragma, streamlining authentication for c
 
 1. Clone the repository:
    ```
-   git clone https://github.com/pragmagq/sso.git pragma-sso
+   git clone https://github.com/pragmahq/sso.git pragma-sso
    cd pragma-sso
    ```
 
